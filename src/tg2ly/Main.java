@@ -1,15 +1,18 @@
 package tg2ly;
 
+import java.io.FileNotFoundException;
+
 public class Main {
 
-	public static String versionString = "0.1.0";
+	public static String versionString = "0.3.0";
 	
 	private class CmdLineParameters
 	{
 		public String in_path = null;
-		public String out_path = null;
+		public String out_path = "./";
 		public boolean help_marker = false;
 		public boolean version_marker = false;
+		public boolean force_marker = false;
 	}
 	
 	private Main.CmdLineParameters parseCmd(String[] args)
@@ -37,6 +40,10 @@ public class Main {
         	{
         		params.version_marker = true;
         	}
+        	if (s.equals("--force") || s.equals("-f"))
+        	{
+        		params.force_marker = true;
+        	}
         	
         	if (in_marker)
         	{
@@ -60,7 +67,7 @@ public class Main {
 	
 	private void display_help()
 	{
-		System.out.println("tg2ly [--version|-v] [--help|-h] --in [in_path] --out [out_path]");
+		System.out.println("tg2ly [--version|-v] [--help|-h] [--force|-f] --in [in_path] --out [out_path]");
 	}
 	
 	private void display_version()
@@ -83,14 +90,14 @@ public class Main {
         }
         else
         {
-    		LyBookExport bookExporter = new LyBookExport();
+    		LyExport bookExporter = new LyExport();
     		try {
-    			bookExporter.exportBook(params.in_path, params.out_path);
+    			bookExporter.export(params.in_path, params.out_path, params.force_marker);
     		}
-    		catch (Exception e)
+    		catch (FileNotFoundException e)
     		{
-    			//System.out.println("Invalid input arguments!");
-    			e.printStackTrace();
+    			System.err.println("Error opening file");
+    			System.exit(-1);
     		}        	
         }
 	}

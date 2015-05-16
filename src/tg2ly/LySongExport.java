@@ -68,8 +68,14 @@ public class LySongExport {
 	
 	private void addMusic(TGSong song, TGTrack track,String id){
 		for( int voice = 0 ; voice < TGBeat.MAX_VOICES ; voice ++ ){
-			this.writer.println("\\context TabVoice = \"" + trackVoiceID(voice, "", "") + "\"");
+			// fix: don't use context
+			this.writer.println("\\new TabVoice = \"" + trackVoiceID(voice, "", "") + "\"");
 			this.writer.println("{");
+			
+			// TODO: needed? fix: support ties over non-adjacent notes (e.g. arpeggios)
+			this.writer.println("\\set tieWaitForNote = ##t");
+			//this.writer.println("\\hideSplitTiedTabNotes");
+			
 			if( this.isVoiceAvailable( track , voice ) ){
 				TGMeasure previous = null;
 				int count = track.countMeasures();
@@ -83,7 +89,9 @@ public class LySongExport {
 						previous = measure;
 					}
 				}
-				this.writer.println(indent(1) + "\\bar \"|.\"");
+				
+				// fix: this overwrites repeat volta at end
+				//this.writer.println(indent(1) + "\\bar \"|.\"");
 			}
 			this.writer.println("}");
 		}
@@ -92,6 +100,10 @@ public class LySongExport {
 	private void addMeasure(TGSong song, TGMeasure measure,TGMeasure previous,int voice,int indent,boolean isLast){
 		if(previous == null || measure.getTempo().getValue() != previous.getTempo().getValue()){
 			this.addTempo(measure.getTempo(),indent);
+		}
+
+		if(previous == null || measure.getTripletFeel() != previous.getTripletFeel()){
+			this.addTripletFeel(measure.getTripletFeel(), indent);
 		}
 		
 //		if(previous == null || measure.getClef() != previous.getClef()){
@@ -194,6 +206,29 @@ public class LySongExport {
 	
 	private void addTempo(TGTempo tempo,int indent){
 		this.writer.println(indent(indent) + "\\tempo 4=" + tempo.getValue());
+	}
+	
+	private void addTripletFeel(int tripletFeel,int indent){
+		switch (tripletFeel) {
+			case TGMeasureHeader.TRIPLET_FEEL_NONE:
+				if (this.temp.getTripletFeel() == TGMeasureHeader.TRIPLET_FEEL_EIGHTH)
+				{
+					this.writer.println(indent(indent) + "\\rhythmMarkW \\rhyMarkTriplets \\rhyMarkIIEighths");
+				}
+				else if (this.temp.getTripletFeel() == TGMeasureHeader.TRIPLET_FEEL_SIXTEENTH)
+				{
+					this.writer.println(indent(indent) + "\\rhythmMarkW \\rhyMarkSixteenthTriplets \\rhyMarkIISixteenth");
+				}
+				break;
+			case TGMeasureHeader.TRIPLET_FEEL_EIGHTH:
+				this.writer.println(indent(indent) + "\\rhythmMarkW \\rhyMarkIIEighths \\rhyMarkTriplets");
+				break;
+			case TGMeasureHeader.TRIPLET_FEEL_SIXTEENTH:
+				this.writer.println(indent(indent) + "\\rhythmMarkW \\rhyMarkIISixteenth \\rhyMarkSixteenthTriplets");
+				break;
+		}
+		
+		this.temp.setTripletFeel(tripletFeel);
 	}
 	
 	private void addTimeSignature(TGTimeSignature ts,int indent){
@@ -440,6 +475,7 @@ public class LySongExport {
 		boolean accentuatedNote = false;
 		boolean heavyAccentuatedNote = false;
 		boolean arpeggio = ( voice.getBeat().getStroke().getDirection() != TGStroke.STROKE_NONE );
+
 		for( int i = 0 ; i < voice.countNotes() ; i ++ ){
 			TGNoteEffect effect = voice.getNote(i).getEffect();
 			
@@ -719,6 +755,7 @@ public class LySongExport {
 		private boolean divisionTypeOpen;
 		private boolean multipleVoices;
 		private List skippedLyricBeats;
+		private int tripletFeel;
 		
 		protected LilypondTempData(){
 			this.skippedLyricBeats = new ArrayList();
@@ -731,6 +768,7 @@ public class LySongExport {
 			this.repeatOpen = false;
 			this.divisionTypeOpen = false;
 			this.skippedLyricBeats.clear();
+			this.tripletFeel = TGMeasureHeader.TRIPLET_FEEL_NONE;
 		}
 		
 		public int getRepeatCount() {
@@ -787,6 +825,14 @@ public class LySongExport {
 		
 		public List getSkippedLyricBeats(){
 			return this.skippedLyricBeats;
+		}
+		
+		public int getTripletFeel() {
+			return tripletFeel;
+		}
+
+		public void setTripletFeel(int tripletFeel) {
+			this.tripletFeel = tripletFeel;
 		}
 	}
 }
